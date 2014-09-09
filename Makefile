@@ -73,6 +73,11 @@ CC = $(CC.$(OS))
 #   setenv MDTEST_FLAGS "-D_HAS_PLFS -I${MPICH_DIR}/include -lplfs"
 # endif
 
+# If we're going to use Lustre (options -M and -o) with mdtest, it requires the
+# lustre_user.h to header file to compile and some other lustre utils,
+# we need to set MDTEST_FLAGS with -D_HAS_LUSTRE.
+#
+#   setenv MDTEST_FLAGS "-D_HAS_LUSTRE"
 
 all: mdtest 
 
