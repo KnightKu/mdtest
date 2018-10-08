@@ -119,6 +119,7 @@ int remove_only = 0;
 int leaf_only = 0;
 int branch_factor = 1;
 int depth = 0;
+int make_node = 0;
 
 /*
  * This is likely a small value, but it's sometimes computed by
@@ -787,7 +788,11 @@ void create_remove_items_helper(int dirs,
               fflush( stdout );
             }
 
-            if ((fd = creat(curr_item, FILEMODE)) == -1) {
+            if (make_node) {
+              if ((fd = mknod(curr_item, S_IFREG | S_IRUSR, 0)) != 0) {
+                FAIL("unable to create file via mknod()");
+              }
+            } else if ((fd = creat(curr_item, FILEMODE)) == -1) {
               FAIL("unable to create file");
             }
 #endif
@@ -944,7 +949,7 @@ void create_remove_items_helper(int dirs,
           fflush( stdout );
         }
 
-        if (close(fd) == -1) {
+        if (!make_node && close(fd) == -1) {
           FAIL("unable to close file");
         }
 #endif
@@ -2224,7 +2229,7 @@ void print_help() {
     "Usage: mdtest [-a S3_userid] [-A S3 IP/Hostname] [-b branching factor]",
     "              [-B] [-c] [-C] [-d testdir] [-D] [-e number_of_bytes_to_read]",
     "              [-E] [-f first] [-F] [-g S3 bucket identifier] [-h] [-i iterations]",
-    "              [-I items_per_dir] [-l last] [-L] [-M] [-n number_of_items] [-N stride_length]",
+    "              [-I items_per_dir] [-k] [-l last] [-L] [-M] [-n number_of_items] [-N stride_length]",
     "              [-p seconds] [-r] [-R[seed]] [-s stride] [-S] [-t] [-T] [-u] [-v]",
     "              [-V verbosity_value] [-w number_of_bytes_to_write] [-y] [-z depth]",
     "\t-a: userid for S3 target device",
@@ -2243,6 +2248,7 @@ void print_help() {
     "\t-h: prints this help message",
     "\t-i: number of iterations the test will run",
     "\t-I: number of items per directory in tree",
+    "\t-k: make node",
     "\t-l: last number of tasks on which the test will run",
     "\t-L: files only at leaf level of tree",
     "\t-M: every process will stripe directory creation across LUSTRE MDTS",
@@ -2539,6 +2545,10 @@ void valid_tests() {
   /* check for valid number of items */
   if ((items > 0) && (items_per_dir > 0)) {
     FAIL("only specify the number of items or the number of items per directory");
+  }
+  /* check mkmod */
+  if (write_bytes > 0 && make_node) {
+    FAIL("-k not compatible with -w");
   }
 #ifdef _HAS_S3
   if (branch_factor > 1 || depth > 0) {
@@ -2993,7 +3003,7 @@ int main(int argc, char **argv) {
 #ifdef _HAS_S3
     c = getopt(argc, argv, "a:A:b:BcCd:De:Ef:Fg:hi:I:l:Ln:N:p:rR::s:StTuvV:w:yz:");
 #else
-    c = getopt(argc, argv, "b:BcCd:De:Ef:Fhi:I:l:LMn:N:p:rR::s:StTuvV:w:yz:");
+    c = getopt(argc, argv, "b:BcCd:De:Ef:Fhi:I:kl:LMn:N:p:rR::s:StTuvV:w:yz:");
 #endif
     if (c == -1) {
       break;
@@ -3039,6 +3049,8 @@ int main(int argc, char **argv) {
     case 'I':
       items_per_dir = ( unsigned long long )strtoul( optarg, ( char ** )NULL, 10 );   break;
       //items_per_dir = atoi(optarg); break;
+    case 'k':
+      make_node = 1;                break;
     case 'l':
       last = atoi(optarg);          break;
     case 'L':
